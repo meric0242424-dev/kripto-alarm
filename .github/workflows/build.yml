@@ -47,10 +47,23 @@ jobs:
       - name: Enable core library desugaring
         run: |
           GRADLE=android/app/build.gradle.kts
-          if [ ! -f "$GRADLE" ]; then GRADLE=android/app/build.gradle; fi
+          IS_KTS=true
+          if [ ! -f "$GRADLE" ]; then GRADLE=android/app/build.gradle; IS_KTS=false; fi
+
           # Ensure minSdkVersion is at least 23 for workmanager/notifications
           sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' $GRADLE || true
           sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/' $GRADLE || true
+
+          # Enable core library desugaring (required by flutter_local_notifications)
+          if [ "$IS_KTS" = "true" ]; then
+            sed -i '/compileOptions {/a\        isCoreLibraryDesugaringEnabled = true' $GRADLE
+            printf '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n' >> $GRADLE
+          else
+            sed -i '/compileOptions {/a\        coreLibraryDesugaringEnabled true' $GRADLE
+            printf "\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'\n}\n" >> $GRADLE
+          fi
+
+          cat $GRADLE
 
       - name: Get dependencies
         run: flutter pub get
