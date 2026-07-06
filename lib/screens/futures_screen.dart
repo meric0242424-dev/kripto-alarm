@@ -32,8 +32,9 @@ class _FuturesScreenState extends State<FuturesScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final results = <FuturesData>[];
-    for (final symbol in kTrackedSymbols) {
+
+    // Tüm coinlerin futures verisini AYNI ANDA (paralel) çek
+    final futures = kTrackedSymbols.map((symbol) async {
       final item = FuturesData(symbol);
       try {
         item.fundingRate = await ApiService.fetchFundingRate(symbol);
@@ -52,8 +53,10 @@ class _FuturesScreenState extends State<FuturesScreen> {
       } catch (e) {
         // sessizce atla
       }
-      results.add(item);
-    }
+      return item;
+    }).toList();
+
+    final results = await Future.wait(futures);
     setState(() {
       _data = results;
       _loading = false;
