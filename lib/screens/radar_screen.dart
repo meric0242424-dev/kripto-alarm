@@ -34,11 +34,12 @@ class _RadarScreenState extends State<RadarScreen> {
     });
     try {
       final coins = await ApiService.fetchTopCoins(kTrackedSymbols);
-      final items = <RadarItem>[];
-      for (final coin in coins) {
+
+      // Her coin için ek veriyi (kline/RSI/hacim) AYNI ANDA (paralel) çek
+      final futures = coins.map((coin) async {
         try {
-          final klines =
-              await ApiService.fetchKlines(coin.symbol, interval: '1h', limit: 50);
+          final klines = await ApiService.fetchKlines(coin.symbol,
+              interval: '1h', limit: 50);
           final closes = ApiService.closePrices(klines);
           final rsi = ApiService.calculateRsi(closes);
           final volumes =
@@ -50,11 +51,14 @@ class _RadarScreenState extends State<RadarScreen> {
             rsi: rsi,
             volumeRatio: volumeRatio,
           );
-          items.add(RadarItem(coin, score));
+          return RadarItem(coin, score);
         } catch (_) {
-          // Bu coin için veri alınamazsa atla
+          return null;
         }
-      }
+      }).toList();
+
+      final results = await Future.wait(futures);
+      final items = results.whereType<RadarItem>().toList();
       items.sort((a, b) => b.score.compareTo(a.score));
       setState(() {
         _items = items;
