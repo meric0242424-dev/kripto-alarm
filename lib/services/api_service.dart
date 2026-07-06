@@ -101,4 +101,55 @@ class ApiService {
     }
     return result;
   }
+
+  // ---- Futures (Vadeli İşlemler) verisi ----
+  static const String _futuresBase = 'https://fapi.binance.com';
+
+  /// Funding rate (bir sonraki fonlama oranı tahmini)
+  static Future<double> fetchFundingRate(String symbol) async {
+    final uri = Uri.parse('$_futuresBase/fapi/v1/premiumIndex?symbol=$symbol');
+    final res = await http.get(uri);
+    if (res.statusCode != 200) throw Exception('Funding rate alınamadı');
+    final data = jsonDecode(res.body);
+    return double.parse(data['lastFundingRate'].toString());
+  }
+
+  /// Long/Short hesap oranı (son 5 dakikalık)
+  static Future<Map<String, double>> fetchLongShortRatio(String symbol) async {
+    final uri = Uri.parse(
+        '$_futuresBase/futures/data/globalLongShortAccountRatio?symbol=$symbol&period=5m&limit=1');
+    final res = await http.get(uri);
+    if (res.statusCode != 200) throw Exception('Long/Short oranı alınamadı');
+    final List data = jsonDecode(res.body);
+    if (data.isEmpty) throw Exception('Veri yok');
+    final entry = data.first;
+    return {
+      'longAccount': double.parse(entry['longAccount'].toString()) * 100,
+      'shortAccount': double.parse(entry['shortAccount'].toString()) * 100,
+    };
+  }
+
+  /// Açık pozisyon miktarı (open interest)
+  static Future<double> fetchOpenInterest(String symbol) async {
+    final uri = Uri.parse('$_futuresBase/fapi/v1/openInterest?symbol=$symbol');
+    final res = await http.get(uri);
+    if (res.statusCode != 200) throw Exception('Açık pozisyon alınamadı');
+    final data = jsonDecode(res.body);
+    return double.parse(data['openInterest'].toString());
+  }
+
+  // ---- Korku & Açgözlülük Endeksi ----
+  static Future<Map<String, dynamic>> fetchFearGreedIndex() async {
+    final uri = Uri.parse('https://api.alternative.me/fng/?limit=1');
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Korku & Açgözlülük verisi alınamadı');
+    }
+    final data = jsonDecode(res.body);
+    final entry = data['data'][0];
+    return {
+      'value': int.parse(entry['value'].toString()),
+      'classification': entry['value_classification'].toString(),
+    };
+  }
 }
