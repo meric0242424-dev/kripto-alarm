@@ -1,14 +1,37 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'services/notification_service.dart';
 import 'services/background_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/alarm_screen.dart';
 
+String? _startupError;
+
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService.init();
-  await initBackgroundService();
-  runApp(const KriptoAlarmApp());
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // Başlangıç servislerini güvenli şekilde başlat.
+    // Biri hata verirse uygulama çökmesin, sadece o özellik devre dışı kalsın.
+    try {
+      await NotificationService.init();
+    } catch (e, st) {
+      _startupError = 'Bildirim servisi başlatılamadı:\n$e';
+      debugPrint('NotificationService init error: $e\n$st');
+    }
+
+    try {
+      await initBackgroundService();
+    } catch (e, st) {
+      _startupError = (_startupError == null ? '' : '$_startupError\n\n') +
+          'Arkaplan servisi başlatılamadı:\n$e';
+      debugPrint('Background service init error: $e\n$st');
+    }
+
+    runApp(const KriptoAlarmApp());
+  }, (error, stack) {
+    debugPrint('Yakalanamayan hata: $error\n$stack');
+  });
 }
 
 class KriptoAlarmApp extends StatelessWidget {
@@ -59,7 +82,21 @@ class _RootNavState extends State<RootNav> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_index],
+      body: Column(
+        children: [
+          if (_startupError != null)
+            Container(
+              width: double.infinity,
+              color: Colors.red.shade900,
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                'Başlangıç uyarısı (uygulama yine de çalışıyor):\n$_startupError',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          Expanded(child: _screens[_index]),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF0B0E14),
         currentIndex: _index,
