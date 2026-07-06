@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/alarm.dart';
 import '../services/storage_service.dart';
+import '../services/background_service.dart';
 import 'home_screen.dart';
 
 class AlarmScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
   String _selectedSymbol = kTrackedSymbols.first;
   AlarmType _selectedType = AlarmType.priceAbove;
   final TextEditingController _valueController = TextEditingController();
+  bool _checking = false;
 
   @override
   void initState() {
@@ -58,6 +60,27 @@ class _AlarmScreenState extends State<AlarmScreen> {
     await _loadAlarms();
   }
 
+  Future<void> _checkNow() async {
+    setState(() => _checking = true);
+    try {
+      await checkAllAlarms();
+      await _loadAlarms();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Kontrol tamamlandı')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Kontrol hatası: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,6 +88,22 @@ class _AlarmScreenState extends State<AlarmScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0B0E14),
         title: const Text('Alarm Merkezi'),
+        actions: [
+          _checking
+              ? const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.bolt),
+                  tooltip: 'Şimdi Kontrol Et',
+                  onPressed: _checkNow,
+                ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
