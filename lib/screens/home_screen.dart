@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Coin> _coins = [];
   bool _loading = true;
   String? _error;
+  Map<String, dynamic>? _fearGreed;
 
   @override
   void initState() {
@@ -48,6 +49,13 @@ class _HomeScreenState extends State<HomeScreen> {
         _error = 'Veri alınamadı, internetini kontrol et';
         _loading = false;
       });
+    }
+    // Korku & Açgözlülük verisi ayrı, hata verse de ana ekranı etkilemesin
+    try {
+      final fg = await ApiService.fetchFearGreedIndex();
+      if (mounted) setState(() => _fearGreed = fg);
+    } catch (_) {
+      // sessizce atla
     }
   }
 
@@ -94,6 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (_fearGreed != null) _fearGreedCard(),
+        if (_fearGreed != null) const SizedBox(height: 20),
         _sectionTitle('Piyasa Genel Görünüm'),
         ..._coins.map(_coinTile),
         const SizedBox(height: 20),
@@ -104,6 +114,87 @@ class _HomeScreenState extends State<HomeScreen> {
         ...losers.take(3).map(_coinTile),
       ],
     );
+  }
+
+  Widget _fearGreedCard() {
+    final value = _fearGreed!['value'] as int;
+    final classification = _fearGreed!['classification'] as String;
+    Color color;
+    if (value <= 25) {
+      color = Colors.redAccent;
+    } else if (value <= 45) {
+      color = Colors.orangeAccent;
+    } else if (value <= 55) {
+      color = Colors.yellowAccent;
+    } else if (value <= 75) {
+      color = Colors.lightGreenAccent;
+    } else {
+      color = Colors.greenAccent;
+    }
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161B26),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: value / 100,
+                  color: color,
+                  backgroundColor: Colors.white12,
+                  strokeWidth: 6,
+                ),
+                Text('$value',
+                    style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Korku & Açgözlülük Endeksi',
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(_translateClassification(classification),
+                    style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _translateClassification(String c) {
+    switch (c) {
+      case 'Extreme Fear':
+        return 'Aşırı Korku';
+      case 'Fear':
+        return 'Korku';
+      case 'Neutral':
+        return 'Nötr';
+      case 'Greed':
+        return 'Açgözlülük';
+      case 'Extreme Greed':
+        return 'Aşırı Açgözlülük';
+      default:
+        return c;
+    }
   }
 
   Widget _sectionTitle(String text) => Padding(
