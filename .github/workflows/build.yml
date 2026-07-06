@@ -1,0 +1,65 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Backup custom source files
+        run: |
+          mkdir -p /tmp/backup
+          cp -r lib /tmp/backup/lib
+          cp pubspec.yaml /tmp/backup/pubspec.yaml
+
+      - name: Scaffold Android platform files
+        run: flutter create --platforms=android --org com.kriptoalarm .
+
+      - name: Restore custom source files
+        run: |
+          rm -rf lib
+          cp -r /tmp/backup/lib lib
+          cp /tmp/backup/pubspec.yaml pubspec.yaml
+
+      - name: Add required Android permissions
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          sed -i 's/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">\n    <uses-permission android:name="android.permission.INTERNET"\/>\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"\/>\n    <uses-permission android:name="android.permission.WAKE_LOCK"\/>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"\/>/' $MANIFEST
+          cat $MANIFEST
+
+      - name: Enable core library desugaring
+        run: |
+          GRADLE=android/app/build.gradle.kts
+          if [ ! -f "$GRADLE" ]; then GRADLE=android/app/build.gradle; fi
+          # Ensure minSdkVersion is at least 23 for workmanager/notifications
+          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' $GRADLE || true
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/' $GRADLE || true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kripto-alarm-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
