@@ -11,9 +11,11 @@ class NotificationService {
     const initSettings = InitializationSettings(android: androidSettings);
     await _plugin.initialize(initSettings);
 
-    // Android 13+ bildirim izni
-    await _plugin
-        .resolvePlatformSpecificImplementation<
+    // Android 13+ bildirim izni - kullanıcı diyalog penceresine yanıt
+    // verene kadar süre alabilir, bu yüzden bunu BEKLEMEDEN (fire-and-forget)
+    // tetikliyoruz ki init() hemen tamamlansın ve uygulama akışını bloklamasın.
+    _plugin
+        .resolvePlatformSpecificImplementation
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
   }
