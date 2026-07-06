@@ -14,10 +14,9 @@ class NotificationService {
     // Android 13+ bildirim izni - kullanıcı diyalog penceresine yanıt
     // verene kadar süre alabilir, bu yüzden bunu BEKLEMEDEN (fire-and-forget)
     // tetikliyoruz ki init() hemen tamamlansın ve uygulama akışını bloklamasın.
-    _plugin
-        .resolvePlatformSpecificImplementation
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    final androidImpl = _plugin.resolvePlatformSpecificImplementation
+        AndroidFlutterLocalNotificationsPlugin>();
+    androidImpl?.requestNotificationsPermission();
   }
 
   static Future<void> showAlarmTriggered({
